@@ -10,15 +10,7 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import RectBivariateSpline,SmoothBivariateSpline
 import traceback
 import sys
-# inputs
-#-  9mm x 9mm/ 0.5pitch  (19x19x2) array of tilt measurements. (how to deal with NaNs?)
-#- XY position of stage.
-#- 3D array of tilt values averaged. (NxNx2)
-#- 2D array of number of values of the average. (NxN)
-#- 2D array of x-positions.(NxN)
-#- 2D array of y-positions.(NxN)
 
-# open issues: How to integrate using both Rx and Ry to get z-flatness. 
 
 pitch = 0.5e-3 
 size_im = [18, 18]
@@ -36,6 +28,8 @@ def initArrays(Nx,Ny, dx,dy, x0, y0):
 
 
 def stitch(tiltMeasurement, xyStage):
+    # tiltMeasurement: array of size_Im[0], size_Im[1], 2
+    # xyStage: list or array of size 2.
     global  N_av, tilts_av
     try:
         #create position arrays
@@ -125,15 +119,7 @@ def stitch(tiltMeasurement, xyStage):
 
 
 
-
-
-# approach flat surface. 
-# sample at dy. 
-# add noise. 
-# use interpolation to find matching points.
-# Subtract average of new points.
-
-
+# used for simulation.
 def GaussTilts(x,y,mux,muy, sigma,A):
     Rx = -(y-muy)/sigma**2*A*np.exp(-0.5*((x-mux)**2+(y-muy)**2)/sigma**2)
     Ry = (x-mux)/sigma**2*A*np.exp(-0.5*((x-mux)**2+(y-muy)**2)/sigma**2)    
