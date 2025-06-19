@@ -8,6 +8,7 @@ Created on Fri May 23 10:05:00 2025
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import RectBivariateSpline,SmoothBivariateSpline
+from integrateSlopes import reconstruct_surface_least_squares
 import traceback
 import sys
 
@@ -54,11 +55,13 @@ def stitch(tiltMeasurement, xyStage):
             # no nans.
             fint_Rx = RectBivariateSpline(y0[:,0],x0[0,:],tiltMeasurement[:,:,0], kx=3, ky=3)
             fint_Ry = RectBivariateSpline(y0[:,0],x0[0,:],tiltMeasurement[:,:,1], kx=3, ky=3)
-        else:
+        elif valid.sum()>4:
             # cannot put kx,ky higher than 1 for this interpolation.
             fint_Rx = SmoothBivariateSpline(y0.flatten()[valid],x0.flatten()[valid],tiltMeasurement[:,:,0].flatten()[valid], kx=1, ky=1)
             fint_Ry = SmoothBivariateSpline(y0.flatten()[valid],x0.flatten()[valid],tiltMeasurement[:,:,1].flatten()[valid], kx=1, ky=1)
-        
+        else:
+            # stop and return
+            return
         
         
 
@@ -109,6 +112,20 @@ def stitch(tiltMeasurement, xyStage):
         
     
     
+def integrateTilts(tilts, pitch):
+    Rx = tilts[:,:,0].copy()
+    Rx -= np.nanmean(tilts[:,:,0])
+    mask = np.logical_not(np.isnan(Rx)).astype(float)
+    Rx[np.isnan(Rx)] = 0.0
+    
+    Ry = tilts[:,:,1].copy()
+    Ry -= np.nanmean(tilts[:,:,1])    
+    Ry[np.isnan(Ry)] =0.0
+    Z = reconstruct_surface_least_squares(-Ry, Rx, dx= pitch, dy = pitch)
+    mask[mask==0.0] = np.nan
+    Z-=np.nanmean(Z)
+    Z*=mask
+    return Z
     
 
 
@@ -134,7 +151,7 @@ def simulate_300mmSquare():
     dx = 7e-3
     sx = 9e-3
     sy = 9e-3
-    sigmaN = 1e-7 # rad
+    sigmaN =1e-7 # rad
     # gauss
     sigmaG = 6e-3/2.35
     muG = [0, 0]
@@ -216,6 +233,17 @@ def simulate_300mmSquare():
     
     cbar = fig4.colorbar(CS)
     cbar.ax.set_ylabel('error[rad]')
+    
+    Z = integrateTilts(tilts_av, pitch)
+    fig5 = plt.figure(5)
+    ax = plt.gca()
+    plt.title("z-plane")
+    Ne = 0
+    CS = plt.contourf(x_pos[Ne:x_pos.shape[0]-Ne,Ne:x_pos.shape[1]-Ne], y_pos[Ne:y_pos.shape[0]-Ne,Ne:y_pos.shape[1]-Ne],\
+                      Z[Ne:Z.shape[0]-Ne,Ne:Z.shape[1]-Ne],cmap = plt.cm.jet)
+    
+    cbar = fig5.colorbar(CS)
+    cbar.ax.set_ylabel('Z[m]')
     
     plt.show()
 
@@ -303,12 +331,21 @@ def simulate_300mm_wafer():
     
     cbar = fig4.colorbar(CS)
     cbar.ax.set_ylabel('error[rad]')
+    Z = integrateTilts(tilts_av, pitch)
+    fig5 = plt.figure(5)
+    ax = plt.gca()
+    plt.title("z-plane")
+    Ne = 0
+    CS = plt.contourf(x_pos[Ne:x_pos.shape[0]-Ne,Ne:x_pos.shape[1]-Ne], y_pos[Ne:y_pos.shape[0]-Ne,Ne:y_pos.shape[1]-Ne],\
+                      Z[Ne:Z.shape[0]-Ne,Ne:Z.shape[1]-Ne],cmap = plt.cm.jet)
     
+    cbar = fig5.colorbar(CS)
+    cbar.ax.set_ylabel('Z[m]')
     plt.show()
 
 
 if __name__ == "__main__":
     
-    simulate_300mmSquare()
-    plt.close('all')
+ #   simulate_300mmSquare()
+ #   plt.close('all')
     simulate_300mm_wafer()
