@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Fri May 23 10:05:00 2025
-
-@author: crvan
-"""
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,7 +9,7 @@ import sys
 
 
 pitch = 0.5e-3 
-size_im = [18, 18]
+size_im = [18, 18] # todo: should be 19, 19 !!! 
 centerPositionCamera = [9*pitch, 9*pitch]
 
 def initArrays(Nx,Ny, dx,dy, x0, y0):
