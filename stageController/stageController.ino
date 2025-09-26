@@ -1,76 +1,201 @@
-/*
- * This Arduino sketch controls a stepper motor using a DM542T driver, an LCD
- * display, a membrane keypad, and a rotary encoder. The user can set the
- * rotation angle and speed of the stepper motor using the keypad. The current
- * angle and speed are displayed on the LCD. The rotary encoder is used to
- * fine-tune the angle.
- */
-
-
-
-
-// Rotary encoder setup
-const int encoderPinA = 3;
-const int encoderPinB = 2;
-volatile int encoderValue = 0;
-
-// Stepper motor driver pins
-const int stepPin = 7;
-const int dirPin = 8;
-const int enablePin = 9;
-
-// Variables
-int targetAngle = 0;
-int targetSpeed = 500; // Default speed in microseconds per step
+const int limitPinY = 11;   // limit input
+const int stepPinY  = 5;
+const int dirPinY   = 7;
+const int limitPinX = 9;   // limit input
+const int stepPinX  = 4;
+const int dirPinX   = 6;
+const int pulsPerMM = 200; 
+char packetBuffer[101];
+int count = 0;
 
 void setup() {
+  pinMode(limitPinY, INPUT_PULLUP);
+  pinMode(stepPinY, OUTPUT);
+  pinMode(dirPinY, OUTPUT);
+  pinMode(limitPinX, INPUT_PULLUP);
+  pinMode(stepPinX, OUTPUT);
+  pinMode(dirPinX, OUTPUT);
+  Serial.begin(115200);
+
+  
+}
 
 
-  // Initialize rotary encoder
-  pinMode(encoderPinA, INPUT);
-  pinMode(encoderPinB, INPUT);
-  attachInterrupt(digitalPinToInterrupt(encoderPinA), updateEncoder, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(encoderPinB), updateEncoder, CHANGE);
 
-  // Initialize stepper motor driver
-  pinMode(stepPin, OUTPUT);
-  pinMode(dirPin, OUTPUT);
-  pinMode(enablePin, OUTPUT);
-  digitalWrite(enablePin, LOW); // Enable the driver
+void homeStageY() {
+  //Serial.println("Homing...");
+  digitalWrite(dirPinY, LOW); // move toward switch
+  while (digitalRead(limitPinY) == HIGH) {
+    stepOnceY();
+    //delayMicroseconds(1500);
+  }
+  Serial.println("Home found!");
+}
+
+void stepOnceY() {
+  digitalWrite(stepPinY, HIGH);
+  delayMicroseconds(800);
+  digitalWrite(stepPinY, LOW);
+  delayMicroseconds(800);
+}
+
+void homeStageX() {
+  //Serial.println("Homing...");
+  digitalWrite(dirPinX, LOW); // move toward switch
+  while (digitalRead(limitPinX) == HIGH) {
+    stepOnceX();
+    //delayMicroseconds(1500);
+  }
+  Serial.println("Home found!");
+}
+
+void stepOnceX() {
+  digitalWrite(stepPinX, HIGH);
+  delayMicroseconds(800);
+  digitalWrite(stepPinX, LOW);
+  delayMicroseconds(800);
+}
+
+
+void move(double dx, double dy, int directionx, int directiony, double speed) {
+  /// y in mm, direction 1 or 0 , speed in mm/s
+  digitalWrite(dirPinY, directiony);
+  digitalWrite(dirPinX, directionx);
+  int delay = int(1/(pulsPerMM*2*speed)*1e6); //[micros]
+  int NpulsesX = int(dx*pulsPerMM);
+  int NpulsesY = int(dy*pulsPerMM);
+  // Serial.print(delay);
+  // Serial.print(",");
+  // Serial.print(NpulsesX);
+  // Serial.print(",");
+  // Serial.print(NpulsesY);
+  // Serial.print("\n");
+
+
+
+  for (int i=0; i<NpulsesX; i++){
+    digitalWrite(stepPinX, HIGH);
+    delayMicroseconds(delay);
+    digitalWrite(stepPinX, LOW);
+    delayMicroseconds(delay);
+    // if (digitalRead(limitPinX) == LOW ) {
+    //   Serial.println("LIMIT HIT X! STOPPING");
+    //   break;
+    // }
+  }
+
+  for (int i=0; i<NpulsesY; i++){
+    digitalWrite(stepPinY, HIGH);
+    delayMicroseconds(delay);
+    digitalWrite(stepPinY, LOW);
+    delayMicroseconds(delay);
+    // if (digitalRead(limitPinY) == LOW) {
+    //   Serial.println("LIMIT HIT Y! STOPPING");
+    //   break;
+    // }
+  }
+
+
+
 }
 
 void loop() {
 
-}
+  // while (true) {
+  //     if (digitalRead(limitPinY) == LOW) {
+  //         Serial.println("LIMIT HIT! STOPPING");
+  //     }
+  //     delayMicroseconds(1000000);
+  // }
+  bool stoploop = false;
+  char value;
 
+  while (count<100 and (not stoploop)){
+     if (Serial.available()){
+      value = Serial.read();
+      //Serial.write(packetBuffer[count-1]);
+      if (value== '\n'){stoploop = true;}
+      else {packetBuffer[count]=value; count = count+1;}
+     }
 
-}
+    }
+  if (count>0 and stoploop == true){
+    
+    packetBuffer[count]=0;
+    count = 0;  
+    stoploop = false;
+    char* command = strtok(packetBuffer, "&"); 
+    while (command!=0){
 
-void updateEncoder() {
-  int stateA = digitalRead(encoderPinA);
-  int stateB = digitalRead(encoderPinB);
-  if (stateA == stateB) {
-    encoderValue++;
-  } else {
-    encoderValue--;
+      if (atoi(command)== 1){
+        // move command.
+
+        // read input values from serial command.
+        command = strtok(0, "&");
+        double dx = atof(command);
+        command = strtok(0, "&");
+        double dy = atof(command);
+        command = strtok(0, "&");
+        int dirx = atoi(command);
+        command = strtok(0, "&");
+        int diry = atoi(command);
+        command = strtok(0, "&");
+        double speed = atof(command);
+        // Serial.print(dx);
+        // Serial.print(",");
+        // Serial.print(dy);
+        // Serial.print(",");
+        // Serial.print(dirx);
+        // Serial.print(",");
+        // Serial.print(diry);
+        // Serial.print(",");
+        // Serial.print(speed);
+        // Serial.print("\n");
+        move(dx,dy, dirx, diry,  speed);
+        Serial.println("move done");
+      }
+
+      else if (atoi(command) == 2){
+        homeStageX();
+      }
+
+      else if (atoi(command) == 3){
+        homeStageY();
+      }
+      else if (atoi(command) == 4){
+        Serial.print(digitalRead(limitPinX) );
+        Serial.print(",");
+        Serial.print(digitalRead(limitPinY) );
+        Serial.print("\n");
+      }
+      else if (atoi(command) == 5){
+        for (int i=0; i<1000; i++){
+          digitalWrite(stepPinX, HIGH);
+          delayMicroseconds(1000);
+          digitalWrite(stepPinX, LOW);
+          delayMicroseconds(1000);
+          // if (digitalRead(limitPinX) == LOW ) {
+          //   Serial.println("LIMIT HIT X! STOPPING");
+          //   break;
+          // }
+        }
+      }
+      else if (atoi(command) == 6){
+        for (int i=0; i<1000; i++){
+          digitalWrite(stepPinY, HIGH);
+          delayMicroseconds(1000);
+          digitalWrite(stepPinY, LOW);
+          delayMicroseconds(1000);
+        }
+      }
+
+      else {}
+
+      command = strtok(0, "&");
+    }
   }
-  targetAngle += encoderValue;
-  encoderValue = 0;
-}
 
-void moveStepper(int angle, int speed) {
-  int steps = angleToSteps(angle);
-  digitalWrite(dirPin, steps > 0 ? HIGH : LOW);
-  steps = abs(steps);
-  for (int i = 0; i < steps; i++) {
-    digitalWrite(stepPin, HIGH);
-    delayMicroseconds(speed);
-    digitalWrite(stepPin, LOW);
-    delayMicroseconds(speed);
-  }
-}
 
-int angleToSteps(int angle) {
-  // Assuming 200 steps per revolution and 1.8 degrees per step
-  return (angle * 200) / 360;
+
+
 }

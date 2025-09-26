@@ -4,11 +4,12 @@
 # 4mB per image. frame rate 90. =>  Can put 11 seconds in 4Gb ram. 
 from pypylon import pylon
 import os
+import cv2
 
 
 
 def grab_images(num_images = 500, frame_rate = 90.0, exposure_time = 500,
-                output_dir = r"c:\data\captured_images"  ):
+                output_dir = r"c:\data\captured_images" , start_count = 0 ):
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
     
@@ -17,13 +18,13 @@ def grab_images(num_images = 500, frame_rate = 90.0, exposure_time = 500,
     camera.Open()
     
     # Set frame rate
-    if camera.AcquisitionFrameRateEnable.IsWritable():
-        camera.AcquisitionFrameRateEnable.SetValue(True)
-        camera.AcquisitionFrameRate.SetValue(frame_rate)
+    #if camera.AcquisitionFrameRateEnable.IsWritable():
+    camera.AcquisitionFrameRateEnable.SetValue(True)
+    camera.AcquisitionFrameRate.SetValue(frame_rate)
     
     # Optionally set exposure time
-    if camera.ExposureTimeAbs.IsWritable():
-        camera.ExposureTimeAbs.SetValue(exposure_time)
+   # if camera.ExposureTimeAbs.IsWritable():
+    camera.ExposureTime.SetValue(exposure_time)
     
     camera.MaxNumBuffer = 500 # 500 images in ram. ~ 2Gb
     
@@ -38,18 +39,21 @@ def grab_images(num_images = 500, frame_rate = 90.0, exposure_time = 500,
     # frame_interval = 1.0 / frame_rate
     # last_time = time.time()
     
-    i = 0
+    i = start_count
     while camera.IsGrabbing():
         grabResult = camera.RetrieveResult(10000, pylon.TimeoutHandling_ThrowException) # 5000 // is time out
     
         if grabResult.GrabSucceeded():
-            image = converter.Convert(grabResult)
-            img = image.GetArray()
+            
+            img = grabResult.Array  
+
+
     
             # Save image
             filename = os.path.join(output_dir, f"image_{i:03d}.png")
-            pylon.PylonImage().Attach(image).Save(pylon.ImageFileFormat_Png, filename)
-    
+            # Save with OpenCV
+            cv2.imwrite(filename, img)
+
             print(f"Saved {filename}")
             i += 1
     

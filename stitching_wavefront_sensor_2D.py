@@ -9,8 +9,8 @@ import sys
 
 
 pitch = 0.5e-3 
-size_im = [18, 18] # todo: should be 19, 19 !!! 
-centerPositionCamera = [9*pitch, 9*pitch]
+size_im = [18, 17] 
+centerPositionCamera = [(size_im[1]-1)/2*pitch, (size_im[0]-1)/2*pitch]
 
 def initArrays(Nx,Ny, dx,dy, x0, y0):
     global x_pos,y_pos, N_av, tilts_av
@@ -30,8 +30,9 @@ def stitch(tiltMeasurement, xyStage):
     try:
         #create position arrays
         y0,x0 = np.mgrid[0:tiltMeasurement.shape[0], 0:tiltMeasurement.shape[1]]*pitch
-        y0+= xyStage[1]-centerPositionCamera[1]
-        x0+= xyStage[0]-centerPositionCamera[0]
+        y0 = xyStage[1]+ y0-centerPositionCamera[1] # invert y-positions
+        x0 = xyStage[0]+ x0 -centerPositionCamera[0]
+        
     
         # find matching indices in y_pos, x_pos.
         sIy =len(np.where(np.round(y_pos[:,0],4)<np.round(y0[:,0].min(),4))[0]) 
@@ -45,7 +46,7 @@ def stitch(tiltMeasurement, xyStage):
            
         # if nan values at edge use non regular grid interpolation.
         valid = np.logical_not(np.isnan(tiltMeasurement[:,:,0].flatten()))
-
+        print(valid.sum(), valid.shape[0])
         if valid.sum() ==valid.shape[0]:
             # no nans.
             fint_Rx = RectBivariateSpline(y0[:,0],x0[0,:],tiltMeasurement[:,:,0], kx=3, ky=3)
@@ -341,6 +342,7 @@ def simulate_300mm_wafer():
 
 if __name__ == "__main__":
     
- #   simulate_300mmSquare()
+#    simulate_300mmSquare()
  #   plt.close('all')
-    simulate_300mm_wafer()
+    #simulate_300mm_wafer()
+    initArrays(1, 60, 1, 1e-3, 0, -30e-3)
